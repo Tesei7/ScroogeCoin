@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ScroogeCoin.iml" filepath="$PROJECT_DIR$/.idea/modules/ScroogeCoin.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ScroogeCoin_main.iml" filepath="$PROJECT_DIR$/.idea/modules/ScroogeCoin_main.iml" group="ScroogeCoin" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ScroogeCoin_test.iml" filepath="$PROJECT_DIR$/.idea/modules/ScroogeCoin_test.iml" group="ScroogeCoin" />
+    </modules>
+  </component>
+</project>
