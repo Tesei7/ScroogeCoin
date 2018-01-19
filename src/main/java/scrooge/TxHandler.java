@@ -1,8 +1,9 @@
 package scrooge;
 
 import java.security.PublicKey;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class TxHandler {
 
@@ -29,7 +30,7 @@ public class TxHandler {
      * values; and false otherwise.
      */
     public boolean isValidTx(Transaction tx) {
-        return verificator.allTxOutputsInPool(tx) &&
+        return verificator.allTxInputsInPool(tx) &&
                 verificator.allTxSignsCorrect(tx) &&
                 verificator.allTxInputsDifferent(tx) &&
                 verificator.allOutputsAreNonNegative(tx) &&
@@ -42,13 +43,23 @@ public class TxHandler {
      * updating the current UTXO pool as appropriate.
      */
     public Transaction[] handleTxs(Transaction[] possibleTxs) {
-        // IMPLEMENT THIS
+        Set<CoinNode> initialCoins = unspentCoins.getAllUTXO().stream().map(CoinNode::new).collect(Collectors.toSet());
+        initialCoins.forEach(coinNode -> {
+            Arrays.stream(possibleTxs).forEach(tx -> {
+                tx.getInputs().forEach(input -> {
+                    if (coinNode.utxo.equals(verificator.getUtxo(tx, input))) {
+                        coinNode.txs.add(new TxNode(tx));
+                    }
+                });
+            });
+        });
     }
 
     private class TransactionVerificator {
-        private boolean allTxOutputsInPool(Transaction tx) {
-            for (int i = 0; i < tx.getOutputs().size(); i++) {
-                UTXO utxo = new UTXO(tx.getHash(), i);
+        private boolean allTxInputsInPool(Transaction tx) {
+            for (int i = 0; i < tx.getInputs().size(); i++) {
+                Transaction.Input input = tx.getInputs().get(i);
+                UTXO utxo = new UTXO(tx.getHash(), input.outputIndex);
                 if (!unspentCoins.contains(utxo)) return false;
             }
             return true;
@@ -57,7 +68,6 @@ public class TxHandler {
         private boolean allTxSignsCorrect(Transaction tx) {
             for (int i = 0; i < tx.getInputs().size(); i++) {
                 Transaction.Input input = tx.getInputs().get(i);
-                UTXO utxo = new UTXO(tx.getHash(), input.outputIndex);
                 Transaction.Output output = getCorrespondingOutput(tx, input);
                 if (output == null) return false;
 
@@ -71,7 +81,7 @@ public class TxHandler {
             Set<UTXO> txInputs = new HashSet<>();
             for (int i = 0; i < tx.getInputs().size(); i++) {
                 Transaction.Input input = tx.getInputs().get(i);
-                txInputs.add(new UTXO(tx.getHash(), input.outputIndex));
+                txInputs.add(getUtxo(tx, input));
             }
             return txInputs.size() == tx.getInputs().size();
         }
@@ -87,8 +97,42 @@ public class TxHandler {
         }
 
         private Transaction.Output getCorrespondingOutput(Transaction tx, Transaction.Input input) {
-            UTXO utxo = new UTXO(tx.getHash(), input.outputIndex);
-            return unspentCoins.getTxOutput(utxo);
+            return unspentCoins.getTxOutput(getUtxo(tx, input));
+        }
+
+        public UTXO getUtxo(Transaction tx, Transaction.Input input) {
+            return new UTXO(tx.getHash(), input.outputIndex);
+        }
+    }
+
+    private interface Node {
+    }
+
+    private class TxNode implements Node {
+        public Transaction tx;
+        public List<CoinNode> coins = new ArrayList<>();
+
+        public TxNode(Transaction tx) {
+            this.tx = tx;
+            for (int i = 0; i < tx.getOutputs().size(); i++) {
+                coins.add(new CoinNode(new UTXO(tx.getHash(), i)));
+            }
+        }
+
+        public void performTx(Transaction tx) {
+        }
+    }
+
+    private class CoinNode implements Node {
+        public UTXO utxo;
+        public List<TxNode> txs = new ArrayList<>();
+
+        public CoinNode(UTXO utxo) {
+            this.utxo = utxo;
+        }
+
+        public void resolveDoubleSpending() {
+
         }
     }
 }
