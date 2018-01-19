@@ -207,4 +207,19 @@ public class Transaction {
     public int numOutputs() {
         return outputs.size();
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Transaction that = (Transaction) o;
+
+        return Arrays.equals(hash, that.hash);
+    }
+
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(hash);
+    }
 }

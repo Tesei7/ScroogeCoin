@@ -3,7 +3,6 @@ package scrooge;
 import java.security.PublicKey;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class TxHandler {
 
@@ -44,15 +43,33 @@ public class TxHandler {
      */
     public Transaction[] handleTxs(Transaction[] possibleTxs) {
         Set<CoinNode> initialCoins = unspentCoins.getAllUTXO().stream().map(CoinNode::new).collect(Collectors.toSet());
-        initialCoins.forEach(coinNode -> {
+        HashMap<Transaction, TxNode> txs = new HashMap<>();
+        recursiveFillTxTree(initialCoins, possibleTxs, txs);
+    }
+
+    private void recursiveFillTxTree(Set<CoinNode> coinNodes, Transaction[] possibleTxs, HashMap<Transaction, TxNode> txs) {
+        Set<CoinNode> newCoins = new HashSet<>();
+        coinNodes.forEach(coinNode -> {
             Arrays.stream(possibleTxs).forEach(tx -> {
                 tx.getInputs().forEach(input -> {
                     if (coinNode.utxo.equals(verificator.getUtxo(tx, input))) {
-                        coinNode.txs.add(new TxNode(tx));
+                        TxNode txNode;
+                        if (txs.get(tx) != null) {
+                            txNode = txs.get(tx);
+                        } else {
+                            txNode = new TxNode(tx);
+                            txs.put(tx, txNode);
+                        }
+                        coinNode.txs.add(txNode);
+                        newCoins.addAll(txNode.coins);
                     }
                 });
             });
         });
+
+        if (!newCoins.isEmpty()) {
+            recursiveFillTxTree(newCoins, possibleTxs, txs);
+        }
     }
 
     private class TransactionVerificator {
