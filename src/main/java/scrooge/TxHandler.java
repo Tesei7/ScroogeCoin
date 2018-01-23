@@ -7,7 +7,7 @@ import java.util.stream.Collectors;
 public class TxHandler {
 
     private UTXOPool unspentCoins;
-    private TransactionVerificator verificator;
+    protected TransactionVerificator verificator;
 
     /**
      * Creates a public ledger whose current UTXOPool (collection of unspent transaction outputs) is
@@ -77,7 +77,17 @@ public class TxHandler {
         }
     }
 
-    private class TransactionVerificator {
+    public double getWeightOfTx(TxNode txNode) {
+        int weight = 0;
+        for (CoinNode coin : txNode.coins) {
+            for (TxNode tx : coin.txs) {
+                weight += tx.getWeight();
+            }
+        }
+        return weight;
+    }
+
+    protected class TransactionVerificator {
         private boolean allTxInputsInPool(Transaction tx) {
             for (int i = 0; i < tx.getInputs().size(); i++) {
                 Transaction.Input input = tx.getInputs().get(i);
@@ -118,7 +128,7 @@ public class TxHandler {
             return sumInput >= sumOutput;
         }
 
-        private Transaction.Output getCorrespondingOutput(Transaction tx, Transaction.Input input) {
+        public Transaction.Output getCorrespondingOutput(Transaction tx, Transaction.Input input) {
             return unspentCoins.getTxOutput(getUtxo(tx, input));
         }
 
@@ -127,7 +137,7 @@ public class TxHandler {
         }
     }
 
-    private class TxNode {
+    protected class TxNode {
         public Transaction tx;
         public boolean isPerformed = false;
         public List<CoinNode> coins = new ArrayList<>();
@@ -151,18 +161,12 @@ public class TxHandler {
             coins.forEach(coinNode -> coinNode.execute(performed));
         }
 
-        public int getWeight() {
-            int weight = 0;
-            for (CoinNode coin : coins) {
-                for (TxNode tx : coin.txs) {
-                    weight += tx.getWeight();
-                }
-            }
-            return weight;
+        public double getWeight() {
+            return getWeightOfTx(this);
         }
     }
 
-    private class CoinNode {
+    protected class CoinNode {
         public UTXO utxo;
         public List<TxNode> txs = new ArrayList<>();
 
@@ -173,10 +177,6 @@ public class TxHandler {
         public void execute(Set<Transaction> performed) {
             Optional<TxNode> max = txs.stream().max(Comparator.comparing(TxNode::getWeight));
             max.ifPresent(txNode -> txNode.performTx(performed));
-        }
-
-        public void resolveDoubleSpending() {
-
         }
     }
 }
