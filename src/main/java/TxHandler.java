@@ -1,5 +1,3 @@
-package scrooge;
-
 import java.security.PublicKey;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -91,7 +89,7 @@ public class TxHandler {
         private boolean allTxInputsInPool(Transaction tx) {
             for (int i = 0; i < tx.getInputs().size(); i++) {
                 Transaction.Input input = tx.getInputs().get(i);
-                UTXO utxo = new UTXO(tx.getHash(), input.outputIndex);
+                UTXO utxo = new UTXO(input.prevTxHash, input.outputIndex);
                 if (!unspentCoins.contains(utxo)) return false;
             }
             return true;

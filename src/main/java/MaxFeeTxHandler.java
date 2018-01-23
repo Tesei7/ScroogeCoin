@@ -1,5 +1,3 @@
-package scrooge;
-
 public class MaxFeeTxHandler extends TxHandler {
     /**
      * Creates a public ledger whose current UTXOPool (collection of unspent transaction outputs) is
