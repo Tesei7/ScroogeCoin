@@ -42,9 +42,14 @@ public class TxHandler {
      * updating the current UTXO pool as appropriate.
      */
     public Transaction[] handleTxs(Transaction[] possibleTxs) {
+        Set<Transaction> performedTxs = new HashSet<>();
         Set<CoinNode> initialCoins = unspentCoins.getAllUTXO().stream().map(CoinNode::new).collect(Collectors.toSet());
+
         HashMap<Transaction, TxNode> txs = new HashMap<>();
         recursiveFillTxTree(initialCoins, possibleTxs, txs);
+
+        initialCoins.forEach(c->c.execute(performedTxs));
+        return performedTxs.toArray(new Transaction[0]);
     }
 
     private void recursiveFillTxTree(Set<CoinNode> coinNodes, Transaction[] possibleTxs, HashMap<Transaction, TxNode> txs) {
@@ -122,11 +127,9 @@ public class TxHandler {
         }
     }
 
-    private interface Node {
-    }
-
-    private class TxNode implements Node {
+    private class TxNode {
         public Transaction tx;
+        public boolean isPerformed = false;
         public List<CoinNode> coins = new ArrayList<>();
 
         public TxNode(Transaction tx) {
@@ -136,16 +139,40 @@ public class TxHandler {
             }
         }
 
-        public void performTx(Transaction tx) {
+        public void performTx(Set<Transaction> performed) {
+            if (isPerformed || !isValidTx(tx)) return;
+            for (Transaction.Input in : tx.getInputs()) {
+                unspentCoins.removeUTXO(verificator.getUtxo(tx, in));
+            }
+            coins.forEach(c -> unspentCoins.removeUTXO(c.utxo));
+            isPerformed = true;
+            performed.add(tx);
+
+            coins.forEach(coinNode -> coinNode.execute(performed));
+        }
+
+        public int getWeight() {
+            int weight = 0;
+            for (CoinNode coin : coins) {
+                for (TxNode tx : coin.txs) {
+                    weight += tx.getWeight();
+                }
+            }
+            return weight;
         }
     }
 
-    private class CoinNode implements Node {
+    private class CoinNode {
         public UTXO utxo;
         public List<TxNode> txs = new ArrayList<>();
 
         public CoinNode(UTXO utxo) {
             this.utxo = utxo;
+        }
+
+        public void execute(Set<Transaction> performed) {
+            Optional<TxNode> max = txs.stream().max(Comparator.comparing(TxNode::getWeight));
+            max.ifPresent(txNode -> txNode.performTx(performed));
         }
 
         public void resolveDoubleSpending() {
