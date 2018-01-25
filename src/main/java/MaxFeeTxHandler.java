@@ -50,7 +50,7 @@ public class MaxFeeTxHandler {
         HashMap<Transaction, TxNode> txs = new HashMap<>();
         recursiveFillTxTree(initialCoins, possibleTxs, txs);
 
-        initialCoins.forEach(c->c.execute(performedTxs));
+        initialCoins.forEach(c -> c.execute(performedTxs));
         return performedTxs.toArray(new Transaction[0]);
     }
 
@@ -177,7 +177,8 @@ public class MaxFeeTxHandler {
         }
 
         public void execute(Set<Transaction> performed) {
-            Optional<TxNode> max = txs.stream().max(Comparator.comparing(TxNode::getWeight));
+            Optional<TxNode> max = txs.stream().
+                    filter(txNode -> isValidTx(txNode.tx)).max(Comparator.comparing(TxNode::getWeight));
             max.ifPresent(txNode -> txNode.performTx(performed));
         }
     }
