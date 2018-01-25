@@ -17,6 +17,10 @@ public class TxHandler {
         verificator = new TransactionVerificator();
     }
 
+    public UTXOPool getUnspentCoins() {
+        return unspentCoins;
+    }
+
     /**
      * @return true if:
      * (1) all outputs claimed by {@code tx} are in the current UTXO pool,
@@ -152,7 +156,10 @@ public class TxHandler {
             for (Transaction.Input in : tx.getInputs()) {
                 unspentCoins.removeUTXO(verificator.getUtxo(in));
             }
-            coins.forEach(c -> unspentCoins.removeUTXO(c.utxo));
+            for (int i = 0; i < tx.getOutputs().size(); i++) {
+                unspentCoins.addUTXO(new UTXO(tx.getHash(), i), tx.getOutputs().get(i));
+            }
+
             isPerformed = true;
             performed.add(tx);
 
