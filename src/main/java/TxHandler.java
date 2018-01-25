@@ -55,7 +55,7 @@ public class TxHandler {
         coinNodes.forEach(coinNode -> {
             Arrays.stream(possibleTxs).forEach(tx -> {
                 tx.getInputs().forEach(input -> {
-                    if (coinNode.utxo.equals(verificator.getUtxo(tx, input))) {
+                    if (coinNode.utxo.equals(verificator.getUtxo(input))) {
                         TxNode txNode;
                         if (txs.get(tx) != null) {
                             txNode = txs.get(tx);
@@ -98,7 +98,7 @@ public class TxHandler {
         private boolean allTxSignsCorrect(Transaction tx) {
             for (int i = 0; i < tx.getInputs().size(); i++) {
                 Transaction.Input input = tx.getInputs().get(i);
-                Transaction.Output output = getCorrespondingOutput(tx, input);
+                Transaction.Output output = getCorrespondingOutput(input);
                 if (output == null) return false;
 
                 PublicKey publicKey = output.address;
@@ -111,7 +111,7 @@ public class TxHandler {
             Set<UTXO> txInputs = new HashSet<>();
             for (int i = 0; i < tx.getInputs().size(); i++) {
                 Transaction.Input input = tx.getInputs().get(i);
-                txInputs.add(getUtxo(tx, input));
+                txInputs.add(getUtxo(input));
             }
             return txInputs.size() == tx.getInputs().size();
         }
@@ -121,17 +121,17 @@ public class TxHandler {
         }
 
         private boolean inputsGreaterOrEqualOutputs(Transaction tx) {
-            Double sumInput = tx.getInputs().stream().mapToDouble(input -> getCorrespondingOutput(tx, input).value).sum();
+            Double sumInput = tx.getInputs().stream().mapToDouble(input -> getCorrespondingOutput(input).value).sum();
             Double sumOutput = tx.getOutputs().stream().mapToDouble(output -> output.value).sum();
             return sumInput >= sumOutput;
         }
 
-        public Transaction.Output getCorrespondingOutput(Transaction tx, Transaction.Input input) {
-            return unspentCoins.getTxOutput(getUtxo(tx, input));
+        public Transaction.Output getCorrespondingOutput(Transaction.Input input) {
+            return unspentCoins.getTxOutput(getUtxo(input));
         }
 
-        public UTXO getUtxo(Transaction tx, Transaction.Input input) {
-            return new UTXO(tx.getHash(), input.outputIndex);
+        public UTXO getUtxo(Transaction.Input input) {
+            return new UTXO(input.prevTxHash, input.outputIndex);
         }
     }
 
@@ -150,7 +150,7 @@ public class TxHandler {
         public void performTx(Set<Transaction> performed) {
             if (isPerformed || !isValidTx(tx)) return;
             for (Transaction.Input in : tx.getInputs()) {
-                unspentCoins.removeUTXO(verificator.getUtxo(tx, in));
+                unspentCoins.removeUTXO(verificator.getUtxo(in));
             }
             coins.forEach(c -> unspentCoins.removeUTXO(c.utxo));
             isPerformed = true;

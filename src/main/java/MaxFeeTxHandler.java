@@ -13,7 +13,7 @@ public class MaxFeeTxHandler extends TxHandler {
     @Override
     public double getWeightOfTx(TxHandler.TxNode txNode) {
         Double sumInput = txNode.tx.getInputs().stream().mapToDouble(
-                input -> verificator.getCorrespondingOutput(txNode.tx, input).value).sum();
+                input -> verificator.getCorrespondingOutput(input).value).sum();
         Double sumOutput = txNode.tx.getOutputs().stream().mapToDouble(output -> output.value).sum();
         return sumInput - sumOutput;
     }

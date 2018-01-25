@@ -2,8 +2,11 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.security.*;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 
 public class TestTxHandler {
     private TxHandler handler;
@@ -38,12 +41,59 @@ public class TestTxHandler {
     }
 
     @Test
-    public void isValidTx() {
+    public void shouldBeValidTx() {
         // given
         Transaction tx = new TransactionBuilder().addInput(new byte[]{0x1}, 0, alice_pr)
                 .addOutput(0.5d, bob_p).addOutput(0.4d, tom_p).build();
         // when //then
         assertTrue(handler.isValidTx(tx));
+    }
+
+    @Test
+    public void incorrectInputCoin() {
+        // given
+        Transaction tx = new TransactionBuilder().addInput(new byte[]{0x11}, 0, alice_pr)
+                .addOutput(0.5d, bob_p).addOutput(0.4d, tom_p).build();
+        // when //then
+        assertFalse(handler.isValidTx(tx));
+    }
+
+    @Test
+    public void incorrectInputSign() {
+        // given
+        Transaction tx = new TransactionBuilder().addInput(new byte[]{0x1}, 0, alice_pr)
+                .addOutput(0.5d, bob_p).addOutput(0.4d, tom_p).build();
+        tx.getInput(0).signature = new byte[]{0x1};
+        // when //then
+        assertFalse(handler.isValidTx(tx));
+    }
+
+    @Test
+    public void sameInputs() {
+        // given
+        Transaction tx = new TransactionBuilder()
+                .addInput(new byte[]{0x1}, 0, alice_pr).addInput(new byte[]{0x1}, 0, alice_pr)
+                .addOutput(0.5d, bob_p).addOutput(0.4d, tom_p).build();
+        // when //then
+        assertFalse(handler.isValidTx(tx));
+    }
+
+    @Test
+    public void negativeOutput() {
+        // given
+        Transaction tx = new TransactionBuilder().addInput(new byte[]{0x1}, 0, alice_pr)
+                .addOutput(0.5d, bob_p).addOutput(-0.4d, tom_p).build();
+        // when //then
+        assertFalse(handler.isValidTx(tx));
+    }
+
+    @Test
+    public void outputsGreaterThanInputs() {
+        // given
+        Transaction tx = new TransactionBuilder().addInput(new byte[]{0x1}, 0, alice_pr)
+                .addOutput(0.5d, bob_p).addOutput(0.6d, tom_p).build();
+        // when //then
+        assertFalse(handler.isValidTx(tx));
     }
 
     private Transaction.Output out(double value, PublicKey person) {
@@ -56,20 +106,16 @@ public class TestTxHandler {
 
     public class TransactionBuilder {
         private final Transaction tx;
+        private List<PrivateKey> privateKeys;
 
         public TransactionBuilder() {
             tx = new Transaction();
+            privateKeys = new ArrayList<>();
         }
 
         public TransactionBuilder addInput(byte[] prevHash, int index, PrivateKey key) {
             tx.addInput(prevHash, index);
-            try {
-                Signature signature = Signature.getInstance("SHA256withRSA");
-                signature.initSign(key);
-                tx.addSignature(signature.sign(), tx.getInputs().size() - 1);
-            } catch (InvalidKeyException | NoSuchAlgorithmException | SignatureException e) {
-                e.printStackTrace();
-            }
+            privateKeys.add(key);
             return this;
         }
 
@@ -80,7 +126,21 @@ public class TestTxHandler {
 
         public Transaction build() {
             tx.setHash(tx.getRawTx());
+            signInputs();
             return tx;
+        }
+
+        private void signInputs() {
+            try {
+                for (int i = 0; i < tx.getInputs().size(); i++) {
+                    Signature signature = Signature.getInstance("SHA256withRSA");
+                    signature.initSign(privateKeys.get(i));
+                    signature.update(tx.getRawDataToSign(i));
+                    tx.addSignature(signature.sign(), i);
+                }
+            } catch (InvalidKeyException | NoSuchAlgorithmException | SignatureException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
